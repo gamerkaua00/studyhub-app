@@ -1,6 +1,6 @@
 // ============================================================
-// StudyHub — utils/api.js
-// Axios configurado para comunicação com o backend
+// StudyHub v2 — utils/api.js
+// Axios com token de autenticação automático
 // ============================================================
 
 import axios from "axios";
@@ -9,40 +9,47 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 12000,
   headers: { "Content-Type": "application/json" },
 });
 
-// Interceptor de resposta: extrai .data automaticamente
+// Injeta o token em toda requisição automaticamente
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("studyhub_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Trata erros globalmente
 api.interceptors.response.use(
   (res) => res.data,
   (err) => {
-    const message =
-      err.response?.data?.message ||
-      err.message ||
-      "Erro de conexão com o servidor";
+    if (err.response?.status === 401) {
+      localStorage.removeItem("studyhub_token");
+      localStorage.removeItem("studyhub_user");
+      window.location.href = "/studyhub-app/login";
+    }
+    const message = err.response?.data?.message || err.message || "Erro de conexão";
     return Promise.reject(new Error(message));
   }
 );
 
-// ── Contents ─────────────────────────────────────────────────
 export const contentApi = {
-  getAll:    (params) => api.get("/api/contents", { params }),
-  getById:   (id)     => api.get(`/api/contents/${id}`),
-  getToday:  ()       => api.get("/api/contents/today"),
-  getUpcoming: (limit = 10) => api.get("/api/contents/upcoming", { params: { limit } }),
-  getExams:  ()       => api.get("/api/contents/exams"),
-  create:    (data)   => api.post("/api/contents", data),
-  update:    (id, data) => api.put(`/api/contents/${id}`, data),
-  delete:    (id)     => api.delete(`/api/contents/${id}`),
+  getAll:      (params) => api.get("/api/contents", { params }),
+  getById:     (id)     => api.get(`/api/contents/${id}`),
+  getToday:    ()       => api.get("/api/contents/today"),
+  getUpcoming: (limit)  => api.get("/api/contents/upcoming", { params: { limit } }),
+  getExams:    ()       => api.get("/api/contents/exams"),
+  create:      (data)   => api.post("/api/contents", data),
+  update:      (id, d)  => api.put(`/api/contents/${id}`, d),
+  delete:      (id)     => api.delete(`/api/contents/${id}`),
 };
 
-// ── Subjects ─────────────────────────────────────────────────
 export const subjectApi = {
-  getAll:  ()         => api.get("/api/subjects"),
-  create:  (data)     => api.post("/api/subjects", data),
-  update:  (id, data) => api.put(`/api/subjects/${id}`, data),
-  delete:  (id)       => api.delete(`/api/subjects/${id}`),
+  getAll:  ()        => api.get("/api/subjects"),
+  create:  (data)    => api.post("/api/subjects", data),
+  update:  (id, d)   => api.put(`/api/subjects/${id}`, d),
+  delete:  (id)      => api.delete(`/api/subjects/${id}`),
 };
 
 export default api;

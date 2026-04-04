@@ -1,6 +1,5 @@
 // ============================================================
-// StudyHub — server.js
-// Ponto de entrada: Express API + conexão MongoDB + cron jobs
+// StudyHub v2 — server.js
 // ============================================================
 
 require("dotenv").config();
@@ -8,15 +7,20 @@ const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const cron = require("node-cron");
+const https = require("https");
+const http = require("http");
 
-const contentRoutes = require("./routes/contentRoutes");
-const subjectRoutes = require("./routes/subjectRoutes");
+const contentRoutes  = require("./routes/contentRoutes");
+const subjectRoutes  = require("./routes/subjectRoutes");
+const authRoutes     = require("./routes/authRoutes");
+const publicRoutes   = require("./routes/publicRoutes");
 const { runScheduler } = require("./services/scheduler");
+const { requireAuth } = require("./middleware/auth");
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3001;
 
-// ── Middlewares ──────────────────────────────────────────────
+// ── CORS ─────────────────────────────────────────────────────
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || "http://localhost:5173",
@@ -27,50 +31,59 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ── Rotas ────────────────────────────────────────────────────
-app.use("/api/contents", contentRoutes);
-app.use("/api/subjects", subjectRoutes);
+// ── Rotas públicas (sem auth) ─────────────────────────────────
+app.use("/api/auth",   authRoutes);
+app.use("/api/public", publicRoutes);
 
-// Health check — Railway verifica este endpoint
+// ── Rotas protegidas ─────────────────────────────────────────
+app.use("/api/contents", requireAuth, contentRoutes);
+app.use("/api/subjects", requireAuth, subjectRoutes);
+
+// ── Health check ──────────────────────────────────────────────
 app.get("/health", (req, res) => {
-  res.json({
-    status: "ok",
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
-// ── Conexão MongoDB ──────────────────────────────────────────
-mongoose
-  .connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+// ── Keep-alive: faz ping em si mesmo a cada 10 minutos ───────
+// Isso evita que o Render durma e perca notificações agendadas
+const keepAlive = () => {
+  const url = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  const lib = url.startsWith("https") ? https : http;
+  lib.get(`${url}/health`, (res) => {
+    console.log(`[Keep-alive] Ping OK — status ${res.statusCode}`);
+  }).on("error", (err) => {
+    console.warn("[Keep-alive] Ping falhou:", err.message);
+  });
+};
+
+// ── MongoDB ───────────────────────────────────────────────────
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log("✅ MongoDB conectado");
 
-    // Inicia o servidor HTTP somente após a conexão com o banco
     app.listen(PORT, () => {
-      console.log(`🚀 StudyHub API rodando na porta ${PORT}`);
+      console.log(`🚀 StudyHub API v2 rodando na porta ${PORT}`);
     });
 
-    // ── Cron: verifica notificações a cada minuto ────────────
-    // Formato: "*/1 * * * *" = todo minuto
+    // Notificações: todo minuto
     cron.schedule("*/1 * * * *", async () => {
       await runScheduler();
     });
 
-    console.log("⏰ Scheduler de notificações iniciado (verifica a cada minuto)");
+    // Keep-alive: a cada 10 minutos
+    cron.schedule("*/10 * * * *", keepAlive);
+
+    console.log("⏰ Scheduler iniciado");
+    console.log("💓 Keep-alive iniciado (ping a cada 10 min)");
   })
   .catch((err) => {
-    console.error("❌ Erro ao conectar MongoDB:", err.message);
+    console.error("❌ Erro MongoDB:", err.message);
     process.exit(1);
   });
 
-// ── Tratamento de erros não capturados ───────────────────────
 process.on("unhandledRejection", (reason) => {
   console.error("UnhandledRejection:", reason);
 });

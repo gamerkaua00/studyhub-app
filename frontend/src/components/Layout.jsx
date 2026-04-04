@@ -1,39 +1,56 @@
 // ============================================================
-// StudyHub — components/Layout.jsx
-// Sidebar + Header + área de conteúdo principal
+// StudyHub v2 — components/Layout.jsx
 // ============================================================
 
-import React, { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 import styles from "./Layout.module.css";
 
-const NAV_ITEMS = [
-  { to: "/",         icon: "🗓️",  label: "Dashboard" },
-  { to: "/novo",     icon: "➕",  label: "Novo Conteúdo" },
-  { to: "/materias", icon: "🎨",  label: "Matérias" },
-];
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export default function Layout({ children }) {
+  const { user, logout, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = useLocation();
+  const [pendingCount, setPendingCount] = useState(0);
 
-  // Título dinâmico da página
-  const pageTitle = NAV_ITEMS.find((n) => n.to === location.pathname)?.label || "StudyHub";
+  // Busca contagem de cadastros pendentes (só admin)
+  useEffect(() => {
+    if (!isAdmin()) return;
+    const check = async () => {
+      try {
+        const res  = await fetch(`${BASE_URL}/api/auth/pending`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("studyhub_token")}` },
+        });
+        const data = await res.json();
+        setPendingCount(data.data?.length || 0);
+      } catch {}
+    };
+    check();
+    const interval = setInterval(check, 60000); // verifica a cada minuto
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const NAV_ITEMS = [
+    { to: "/",          icon: "🗓️",  label: "Dashboard" },
+    { to: "/novo",      icon: "➕",  label: "Novo Conteúdo" },
+    { to: "/materias",  icon: "🎨",  label: "Matérias" },
+    ...(isAdmin() ? [{ to: "/cadastros", icon: "🔔", label: "Cadastros", badge: pendingCount }] : []),
+  ];
 
   return (
     <div className={styles.root}>
-      {/* Overlay mobile */}
-      {sidebarOpen && (
-        <div
-          className={styles.overlay}
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {sidebarOpen && <div className={styles.overlay} onClick={() => setSidebarOpen(false)} />}
 
-      {/* Sidebar */}
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.open : ""}`}>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}>📚</span>
+          <span>📚</span>
           <span className={styles.logoText}>StudyHub</span>
         </div>
 
@@ -43,44 +60,56 @@ export default function Layout({ children }) {
               key={item.to}
               to={item.to}
               end={item.to === "/"}
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.active : ""}`
-              }
+              className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ""}`}
               onClick={() => setSidebarOpen(false)}
             >
               <span className={styles.navIcon}>{item.icon}</span>
               <span className={styles.navLabel}>{item.label}</span>
+              {item.badge > 0 && (
+                <span className={styles.navBadge}>{item.badge}</span>
+              )}
             </NavLink>
           ))}
-        </nav>
 
-        <div className={styles.sidebarFooter}>
-          <span className={styles.footerText}>
-            🤖 Bot Discord ativo
-          </span>
+          {/* Link para agenda pública */}
           <a
-            href="https://discord.com/developers/applications"
+            href="/studyhub-app/agenda-publica"
             target="_blank"
             rel="noopener noreferrer"
-            className={styles.footerLink}
+            className={styles.navItem}
           >
-            Configurar →
+            <span className={styles.navIcon}>👁️</span>
+            <span className={styles.navLabel}>Agenda Pública</span>
           </a>
+        </nav>
+
+        {/* Info do usuário logado */}
+        <div className={styles.userBox}>
+          <div className={styles.userInfo}>
+            <span className={styles.userIcon}>
+              {isAdmin() ? "🛡️" : "👤"}
+            </span>
+            <div>
+              <span className={styles.userName}>{user?.username}</span>
+              <span className={styles.userRole}>
+                {isAdmin() ? "Administrador" : user?.role || "Usuário"}
+              </span>
+            </div>
+          </div>
+          <button className={styles.logoutBtn} onClick={handleLogout} title="Sair">
+            ↩
+          </button>
+        </div>
+
+        <div className={styles.sidebarFooter}>
+          <span className={styles.footerText}>🤖 Bot Discord ativo</span>
         </div>
       </aside>
 
-      {/* Área principal */}
       <div className={styles.main}>
-        {/* Header */}
         <header className={styles.header}>
-          <button
-            className={styles.menuBtn}
-            onClick={() => setSidebarOpen((o) => !o)}
-            aria-label="Abrir menu"
-          >
-            ☰
-          </button>
-          <h1 className={styles.pageTitle}>{pageTitle}</h1>
+          <button className={styles.menuBtn} onClick={() => setSidebarOpen((o) => !o)}>☰</button>
+          <h1 className={styles.pageTitle}>StudyHub</h1>
           <div className={styles.headerRight}>
             <span className={styles.statusBadge}>
               <span className={styles.statusDot} />
@@ -89,7 +118,6 @@ export default function Layout({ children }) {
           </div>
         </header>
 
-        {/* Conteúdo da rota */}
         <main className={styles.content}>{children}</main>
       </div>
     </div>

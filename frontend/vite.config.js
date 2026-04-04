@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Altere "studyhub" para o nome real do seu repositório no GitHub
-const REPO_NAME = "studyhub-app";
+const REPO_NAME = "studyhub";
 
 export default defineConfig({
   plugins: [react()],
