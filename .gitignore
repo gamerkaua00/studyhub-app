@@ -1,6 +1,7 @@
-node_modules/  
-.env  
-frontend/.env  
-backend/.env  
-bot/.env  
-dist/ 
+.env 
+backend/.env 
+bot/.env 
+frontend/.env 
+node_modules/ 
+bot-v3.zip 
+bot-v2.zip 

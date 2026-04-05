@@ -1,46 +1,43 @@
-// ============================================================
-// StudyHub v2 — routes/publicRoutes.js
-// Rotas sem autenticação — visualização pública da agenda
-// ============================================================
-
+// StudyHub v3 — routes/publicRoutes.js
 const express = require("express");
 const router  = express.Router();
 const Content = require("../models/Content");
 
-// GET /api/public/agenda?month=4&year=2026
-router.get("/agenda", async (req, res) => {
-  try {
-    const { month, year } = req.query;
-    const filter = {};
+const getBRT = () => {
+  const now = new Date();
+  return new Date(now.getTime() - 3 * 60 * 60 * 1000);
+};
 
-    if (month && year) {
-      const m = String(month).padStart(2, "0");
-      filter.date = { $gte: `${year}-${m}-01`, $lte: `${year}-${m}-31` };
-    }
-
-    const contents = await Content.find(filter)
-      .select("title subject subjectColor type date time description")
-      .sort({ date: 1, time: 1 });
-
-    res.json({ success: true, data: contents });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-// GET /api/public/today
 router.get("/today", async (req, res) => {
   try {
-    const now = new Date();
-    const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-    const today = brt.toISOString().split("T")[0];
-    const contents = await Content.find({ date: today })
-      .select("title subject subjectColor type date time description")
-      .sort({ time: 1 });
+    const today = getBRT().toISOString().split("T")[0];
+    const contents = await Content.find({ date: today }).select("title subject subjectColor type date time description").sort({ time: 1 });
     res.json({ success: true, data: contents, date: today });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+router.get("/agenda", async (req, res) => {
+  try {
+    const { month, year, limit } = req.query;
+    const today = getBRT().toISOString().split("T")[0];
+    let filter = { date: { $gte: today } };
+    if (month && year) {
+      const m = String(month).padStart(2, "0");
+      filter = { date: { $gte: `${year}-${m}-01`, $lte: `${year}-${m}-31` } };
+    }
+    let query = Content.find(filter).select("title subject subjectColor type date time description").sort({ date: 1, time: 1 });
+    if (limit) query = query.limit(parseInt(limit));
+    const contents = await query;
+    res.json({ success: true, data: contents });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+router.get("/exams", async (req, res) => {
+  try {
+    const today = getBRT().toISOString().split("T")[0];
+    const exams = await Content.find({ type: "Prova", date: { $gte: today } }).select("title subject subjectColor type date time").sort({ date: 1 });
+    res.json({ success: true, data: exams });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
 
 module.exports = router;
