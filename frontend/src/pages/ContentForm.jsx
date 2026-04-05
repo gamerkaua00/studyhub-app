@@ -21,9 +21,13 @@ const EMPTY_FORM = {
 };
 
 const TYPE_OPTIONS = [
-  { value: "Aula",    label: "📖 Aula" },
-  { value: "Revisão", label: "🔄 Revisão" },
-  { value: "Prova",   label: "📝 Prova" },
+  { value: "Aula",         label: "📖 Aula" },
+  { value: "Revisão",      label: "🔄 Revisão" },
+  { value: "Prova",        label: "📝 Prova" },
+  { value: "Apresentação", label: "🎤 Apresentação" },
+  { value: "Atividade",    label: "📋 Atividade" },
+  { value: "Avaliação",    label: "📊 Avaliação" },
+  { value: "Lista",        label: "📃 Lista" },
 ];
 
 const CHANNEL_OPTIONS = ["conteudos", "agenda", "avisos-provas", "geral"];

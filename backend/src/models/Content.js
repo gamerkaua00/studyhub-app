@@ -30,11 +30,11 @@ const contentSchema = new mongoose.Schema(
     },
 
     // Tipo do conteúdo
-    type: {
-      type: String,
-      enum: ["Aula", "Revisão", "Prova"],
-      required: [true, "Tipo é obrigatório"],
-    },
+   type: {
+   type: String,
+   enum: ["Aula", "Revisão", "Prova", "Apresentação",   "Atividade", "Avaliação", "Lista"],
+   required: [true, "Tipo é obrigatório"],
+},
 
     // Data agendada (armazenada como string YYYY-MM-DD para evitar problemas de timezone)
     date: {
