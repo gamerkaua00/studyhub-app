@@ -13,7 +13,7 @@ const EMPTY_FORM = {
   title:          "",
   subject:        "",
   type:           "Aula",
-  date:           format(new Date(), "yyyy-MM-dd"),
+  date:           sessionStorage.getItem("prefilledDate") || format(new Date(), "yyyy-MM-dd"),
   time:           "08:00",
   discordChannel: "conteudos",
   resourceLink:   "",

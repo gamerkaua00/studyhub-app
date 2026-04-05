@@ -1,23 +1,16 @@
-// ============================================================
-// StudyHub v2 — events/ready.js
-// ============================================================
-
+// StudyHub v3 — events/ready.js
 const { setupServer } = require("../services/setupServer");
+const { logInfo }     = require("../services/logService");
 
 module.exports = {
-  name: "ready",
+  name: "clientReady",
   once: true,
   async execute(client) {
     console.log(`\n✅ Bot online: ${client.user.tag}`);
-    console.log(`📡 ${client.guilds.cache.size} servidor(es)\n`);
-
-    client.user.setPresence({
-      activities: [{ name: "📚 StudyHub | !ajuda" }],
-      status: "online",
-    });
-
+    client.user.setPresence({ activities: [{ name: "📚 StudyHub | /ajuda" }], status: "online" });
     for (const [, guild] of client.guilds.cache) {
-      await setupServer(guild);
+      await setupServer(guild, client);
     }
+    await logInfo(client, `✅ Bot iniciado — ${client.user.tag}`);
   },
 };

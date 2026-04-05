@@ -1,62 +1,21 @@
-// ============================================================
-// StudyHub — commands/hoje.js
-// !hoje → lista os conteúdos agendados para hoje
-// ============================================================
-
-const { apiGet, formatDate, typeEmoji, hexToDecimal } = require("../utils/api");
-
+const { apiGet, formatDate, typeEmoji } = require("../utils/api");
 module.exports = {
   name: "hoje",
-  description: "Mostra os conteúdos agendados para hoje",
-
   async execute(message) {
+    await message.channel.sendTyping();
     try {
-      // Indicador de digitando...
-      await message.channel.sendTyping();
-
-      const response = await apiGet("/api/contents/today");
-
-      if (!response.success || response.data.length === 0) {
-        return message.reply({
-          embeds: [{
-            title: "📅 Agenda de Hoje",
-            description: "✅ Nenhum conteúdo agendado para hoje. Dia livre!",
-            color: 0x57F287,
-            footer: { text: `StudyHub • ${formatDate(response.date || "")}` },
-            timestamp: new Date().toISOString(),
-          }],
-        });
+      const res = await apiGet("/api/public/today");
+      if (!res.success || !res.data.length) {
+        return message.reply({ embeds: [{ title: "📅 Hoje", description: "✅ Nenhum conteúdo hoje!", color: 0x57F287, timestamp: new Date().toISOString() }] });
       }
-
-      const contents = response.data;
-
-      // Agrupa por matéria para apresentação mais limpa
       const bySubject = {};
-      for (const c of contents) {
-        if (!bySubject[c.subject]) bySubject[c.subject] = [];
-        bySubject[c.subject].push(c);
-      }
-
-      const fields = [];
-      for (const [subject, items] of Object.entries(bySubject)) {
-        const lines = items
-          .map((c) => `${typeEmoji(c.type)} **${c.time}** — ${c.title} *(${c.type})*`)
-          .join("\n");
-        fields.push({ name: `📌 ${subject}`, value: lines, inline: false });
-      }
-
-      await message.reply({
-        embeds: [{
-          title: `📅 Agenda de Hoje — ${formatDate(response.date)}`,
-          color: 0x5865F2,
-          fields,
-          footer: { text: `StudyHub • ${contents.length} item(ns) hoje` },
-          timestamp: new Date().toISOString(),
-        }],
-      });
-    } catch (err) {
-      console.error("[!hoje] Erro:", err.message);
-      message.reply("❌ Não foi possível buscar os conteúdos de hoje. Verifique se o backend está online.");
-    }
+      for (const c of res.data) { if (!bySubject[c.subject]) bySubject[c.subject] = []; bySubject[c.subject].push(c); }
+      const fields = Object.entries(bySubject).map(([s, items]) => ({
+        name: `📌 ${s}`,
+        value: items.map((c) => `${typeEmoji(c.type)} **${c.time}** — ${c.title}`).join("\n"),
+        inline: false,
+      }));
+      message.reply({ embeds: [{ title: `📅 Agenda de Hoje — ${formatDate(res.date)}`, color: 0x5865F2, fields, timestamp: new Date().toISOString(), footer: { text: `StudyHub • ${res.data.length} item(ns)` } }] });
+    } catch (err) { message.reply("❌ Erro ao buscar dados. Backend pode estar acordando, tente novamente."); }
   },
 };
